@@ -1,0 +1,24 @@
+default:
+  image: node:latest
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+
+stages:
+  - test
+
+variables:
+  NODE_ENV: 'development'
+
+before_script:
+  - npm install eslint --save-dev
+  - npm install @eslint/js --save-dev
+  - npm install globals --save-dev
+
+enforce-quality:
+  stage: test
+  script:
+    - npm run lint
+  only:
+    - merge_requests

@@ -1,0 +1,200 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  // shadowDatabaseUrl = env("SHADOW_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model user {
+  id              String            @id @db.VarChar(255)
+  name            String            @db.VarChar(255)
+  email           String            @unique @db.VarChar(255)
+  password        String            @db.VarChar(255)
+  role            role
+  outlet_id       String?           @db.VarChar(255)
+  created_at      DateTime          @default(now())
+  deleted         Boolean           @default(false)
+  outlet          outlets?          @relation(fields: [outlet_id], references: [id])
+  orders          orders[]
+  item_receptions item_receptions[]
+  notifications   Notification[]
+  item_requests   item_requests[]
+}
+
+enum role {
+  ADMIN
+  KASIR
+  STAFF
+}
+
+model outlets {
+  id              String            @id @db.VarChar(255)
+  name            String            @db.VarChar(255)
+  address         String            @db.Text()
+  phone           String            @db.VarChar(18)
+  deleted         Boolean           @default(false)
+  email           String            @db.VarChar(100)
+  created_at      DateTime          @default(now())
+  users           user[]            @relation
+  items           items[]           @relation()
+  orders          orders[]
+  item_receptions item_receptions[]
+  stock_cards     stock_cards[]     @relation
+  item_requests   item_requests[]
+}
+
+model items {
+  id                     String                   @id @db.VarChar(255)
+  name                   String                   @db.VarChar(255)
+  price                  Int
+  description            String                   @db.Text
+  unit                   unit
+  stock                  Int
+  outlet_id              String                   @db.VarChar(255)
+  created_at             DateTime                 @default(now())
+  deleted                Boolean                  @default(false)
+  updated_at             DateTime                 @updatedAt
+  outlet                 outlets                  @relation(fields: [outlet_id], references: [id])
+  item_reception_details item_reception_details[]
+  order_details          order_details[]
+  stock_cards            stock_cards[]            @relation
+  item_request_details   item_request_details[]
+}
+
+enum unit {
+  pil
+  kapsul
+  tablet
+  sirup
+  salep
+  gel
+  injeksi
+}
+
+model orders {
+  id            String          @id @db.VarChar(255)
+  public_id     String          @unique @db.VarChar(255)
+  outlet_id     String          @db.VarChar(255)
+  user_id       String          @db.VarChar(255)
+  amount        Int             @default(0)
+  total_payment Int             @default(0)
+  status        order
+  created_at    DateTime        @default(now())
+  outlet        outlets         @relation(fields: [outlet_id], references: [id])
+  user          user            @relation(fields: [user_id], references: [id])
+  order_details order_details[]
+}
+
+enum order {
+  on_process
+  success
+  rejected
+}
+
+model order_details {
+  id          String   @id @db.VarChar(255)
+  order_id    String   @db.VarChar(255)
+  item_id     String   @db.VarChar(255)
+  price       Int
+  quantity    Int
+  total_price Int
+  created_at  DateTime @default(now())
+  orders      orders   @relation(fields: [order_id], references: [id])
+  items       items    @relation(fields: [item_id], references: [id])
+}
+
+model stock_cards {
+  id String @id @db.VarChar(255)
+
+  item_id String @db.VarChar(255)
+  item    items  @relation(fields: [item_id], references: [id])
+
+  outlet_id String  @db.VarChar(255)
+  outlet    outlets @relation(fields: [outlet_id], references: [id])
+
+  stock_in         Int
+  stock_out        Int
+  current_stock    Int
+  transaction_type stock_transaction
+  transaction_id   String            @db.VarChar(255)
+  created_at       DateTime          @default(now())
+}
+
+enum stock_transaction {
+  initial_stock
+  receipt
+  sale
+}
+
+model item_receptions {
+  id                     String                   @id @db.VarChar(255)
+  user_id                String                   @db.VarChar(255)
+  outlet_id              String                   @db.VarChar(255)
+  kode_po                String                   @db.VarChar(255)  // ID dari item_requests
+  date_po                DateTime
+  created_at             DateTime                 @default(now())
+  outlet                 outlets                  @relation(fields: [outlet_id], references: [id])
+  user                   user                     @relation(fields: [user_id], references: [id])
+  item_reception_details item_reception_details[]
+  request                item_requests            @relation(fields: [kode_po], references: [id])
+}
+
+model item_reception_details {
+  id            String          @id @db.VarChar(255)
+  item_id       String          @db.VarChar(255)
+  receptions_id String          @db.VarChar(255)
+  quantity      Int
+  created_at    DateTime        @default(now())
+  item          items           @relation(fields: [item_id], references: [id])
+  reception     item_receptions @relation(fields: [receptions_id], references: [id])
+}
+
+model Notification {
+  id         String   @id @default(uuid())
+  userId     String   @db.VarChar(255)  // ID user yang menerima notifikasi
+  message    String   @db.Text          // Pesan notifikasi
+  createdAt  DateTime @default(now())   // Waktu notifikasi dibuat
+  read       Boolean  @default(false)   // Status sudah terbaca atau belum
+
+  user       user     @relation(fields: [userId], references: [id])
+}
+
+model item_requests {
+  id            String          @id @db.VarChar(255)
+  user_id       String          @db.VarChar(255)  // ID pengguna yang mengajukan permintaan
+  outlet_id     String          @db.VarChar(255)  // ID outlet terkait
+  status        request_status  @default(pending) // Status pengajuan
+  requested_at  DateTime
+  approved_at   DateTime?
+  notes         String?         @db.VarChar(255)  // Catatan atau keterangan tambahan
+  created_at    DateTime        @default(now())
+  user          user            @relation(fields: [user_id], references: [id])
+  outlet        outlets         @relation(fields: [outlet_id], references: [id])
+  item_request_details item_request_details[]
+  item_reception     item_receptions[]
+}
+
+enum request_status {
+  pending
+  approved
+  rejected
+}
+
+model item_request_details {
+  id            String          @id @db.VarChar(255)
+  request_id    String          @db.VarChar(255)  // ID pengajuan item
+  item_id       String          @db.VarChar(255)  // ID item yang diajukan
+  qty           Int             // Jumlah item yang diminta
+  created_at    DateTime        @default(now())
+  request       item_requests   @relation(fields: [request_id], references: [id])
+  item          items           @relation(fields: [item_id], references: [id])
+}
