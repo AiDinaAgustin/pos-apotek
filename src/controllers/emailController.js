@@ -3,7 +3,7 @@ const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
 
 exports.sendSlipGajiEmail = async (req, res) => {
-    const { namaStaff, nomorStaff, gajiPokok, tunjanganRokok, email, userId } = req.body;
+    const { namaStaff, nomorStaff, gajiPokok, tunjanganRokok, email } = req.body;
 
     const slipData = { 
         name: namaStaff, 
@@ -17,7 +17,7 @@ exports.sendSlipGajiEmail = async (req, res) => {
 
         await prisma.notification.create({
             data: {
-                userId: userId, 
+                userId: nomorStaff, // Use nomorStaff as userId
                 message: `Slip gaji Anda untuk bulan ini telah dikirim.`,
             },
         });
